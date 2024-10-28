@@ -1,5 +1,8 @@
 import warnings
 from typing import List, Optional, Tuple, Union
+from PIL import Image
+from decord import VideoReader, cpu    # pip install decord
+import numpy as np
 
 import torch
 from accelerate import Accelerator, DistributedType
@@ -181,12 +184,31 @@ class MiniCPM_V(lmms):
             assert self.batch_size_per_gpu == 1, "Do not support batch_size_per_gpu > 1 for now"
             assert len(visuals) == 1, "MiniCPM_V interface does not support bn_image > 1 for now"
             context = contexts[0]
+
+            params = dict()
+
             if "<image>" in context:
                 # minicpm does not expect the <image> tag
                 context = context.replace("<image>", "")
+                input_image = visuals[0]
+                gen_kwargs["image_sizes"] = [visuals[idx].size for idx in range(len(visuals))]
+
+            elif type(visuals[0]) == str and '.mp4' in visuals[0]:
+                # encode video frames
+                spare_frames, frame_time, video_time = self.load_video(visuals[0], max_frames_num=64, fps=1)
+                assert type(context) == str, "Context should be a string for video tasks"
+                spare_frames = [Image.fromarray(v.astype('uint8')) for v in spare_frames]
+                context = spare_frames + [context]
+                input_image = None
+                
+                params["use_image_id"] = False
+                params["max_slice_nums"] = 2
+                params["max_inp_length"] = 2**20
+
             msgs = [{"role": "user", "content": context}]
 
-            gen_kwargs["image_sizes"] = [visuals[idx].size for idx in range(len(visuals))]
+            
+
             if "max_new_tokens" not in gen_kwargs:
                 gen_kwargs["max_new_tokens"] = 1024
             if "temperature" not in gen_kwargs:
@@ -197,8 +219,8 @@ class MiniCPM_V(lmms):
                 gen_kwargs["num_beams"] = 1
             try:
                 # ominicpm does not give much information on how they do eval so I just use the chat format.
-                response, context, _ = self.model.chat(
-                    image=visuals[0],
+                response = self.model.chat(
+                    image=input_image,
                     msgs=msgs,
                     context=None,
                     tokenizer=self.tokenizer,
@@ -207,6 +229,7 @@ class MiniCPM_V(lmms):
                     top_p=gen_kwargs["top_p"],
                     num_beams=gen_kwargs["num_beams"],
                     max_new_tokens=gen_kwargs["max_new_tokens"],
+                    **params
                 )
             except Exception as e:
                 eval_logger.error(f"Error {e} in generating")
@@ -222,3 +245,23 @@ class MiniCPM_V(lmms):
 
     def generate_until_multi_round(self, requests) -> List[str]:
         raise NotImplementedError("TODO: Implement multi-round generation")
+
+    def load_video(self, video_path, max_frames_num, fps, force_sample=False):
+        if max_frames_num == 0:
+            return np.zeros((1, 336, 336, 3))
+        vr = VideoReader(video_path, ctx=cpu(0), num_threads=1)
+        total_frame_num = len(vr)
+        video_time = total_frame_num / vr.get_avg_fps()
+        fps = round(vr.get_avg_fps() / fps)
+        frame_idx = [i for i in range(0, len(vr), fps)]
+        frame_time = [i / fps for i in frame_idx]
+        if len(frame_idx) > max_frames_num or force_sample:
+            sample_fps = max_frames_num
+            uniform_sampled_frames = np.linspace(0, total_frame_num - 1, sample_fps, dtype=int)
+            frame_idx = uniform_sampled_frames.tolist()
+            frame_time = [i / vr.get_avg_fps() for i in frame_idx]
+        frame_time = ",".join([f"{i:.2f}s" for i in frame_time])
+        spare_frames = vr.get_batch(frame_idx).asnumpy()
+        # import pdb;pdb.set_trace()
+
+        return spare_frames, frame_time, video_time
