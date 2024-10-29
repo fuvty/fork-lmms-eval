@@ -179,6 +179,13 @@ def simple_evaluate(
         },
     )
 
+    if cli_args.use_sparse:
+        print("You are using the sparse model of qwen")
+        from sparsevlm.models.qwen2.modeling_qwen2 import replace_Qwen2_forward
+        from scripts.playground.get_token_type import get_token_type
+        get_token_type(lm._model)
+        replace_Qwen2_forward(lm._model, "kv_prune", n_save_frame=3, save_special_token=True, save_text=True)
+
     # helper function to recursively apply config overrides to leaf subtasks, skipping their constituent groups.
     # (setting of num_fewshot ; bypassing metric calculation ; setting fewshot seed)
     def _adjust_config(task_dict):
@@ -296,6 +303,13 @@ def simple_evaluate(
         results["date"] = datetime_str
         # add_env_info(results)  # additional environment info to results
         # add_tokenizer_info(results, lm)  # additional info about tokenizer
+
+        # add all cli_cfg to results['config'] if the key is not in it
+        if cli_args is not None:
+            for key, value in cli_args.__dict__.items():
+                if key not in results["config"]:
+                    results["config"][key] = value
+
         return results
     else:
         return None

@@ -84,7 +84,7 @@ class LlavaVid(lmms):
         device: Optional[str] = "cuda:0",
         batch_size: Optional[Union[int, str]] = 1,
         attn_implementation=(
-            "sdpa" if torch.__version__ >= "2.1.2" else "eager"
+            "flash_attention_2" if torch.__version__ >= "2.1.2" else "eager"
         ),  # inference implementation for attention, can be "sdpa", "eager", "flash_attention_2". Seems FA2 is not effective during inference: https://discuss.huggingface.co/t/flash-attention-has-no-effect-on-inference/73453/5
         device_map="cuda:0",
         conv_template="vicuna_v1",
@@ -520,6 +520,8 @@ class LlavaVid(lmms):
             outputs = self.tokenizer.batch_decode(output_ids, skip_special_tokens=True)[0].strip()
             eval_logger.debug(f"Question: {cur_prompt}")
             eval_logger.debug(f"Answer: {outputs}")
+            # eval_logger.debug(f"Num_Frames: {videos[0].shape[0]}")
+            eval_logger.debug(f"Num_Frames: {videos[0].shape[0]}")
             # import pdb;pdb.set_trace()
             res.append(outputs)
             pbar.update(1)

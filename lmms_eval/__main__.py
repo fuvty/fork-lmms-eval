@@ -264,6 +264,15 @@ def parse_eval_args() -> argparse.Namespace:
         action="store_true",
         help="Sets trust_remote_code to True to execute code to create HF Datasets from the Hub",
     )
+
+    # add by SparseVLM
+    parser.add_argument(
+        "--use_sparse",
+        action="store_true",
+        help="Use sparse model for evaluation",
+        default=False,
+    )
+
     args = parser.parse_args()
     return args
 
