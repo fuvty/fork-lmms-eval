@@ -267,10 +267,18 @@ def parse_eval_args() -> argparse.Namespace:
 
     # add by SparseVLM
     parser.add_argument(
-        "--use_sparse",
-        action="store_true",
-        help="Use sparse model for evaluation",
-        default=False,
+        "--compress_mode",
+        type=str,
+        choices=["profile", "kv_prune", "prefill_merge"],
+        help="Select the compression mode from profile, kv_prune and prefill_merge",
+        default=None,
+    )
+
+    parser.add_argument(
+        "--compress_args",
+        type=str,
+        default=None,
+        help="Comma separated string arguments for compression, e.g. `n_save_frame=3,save_special_token=True,save_text=True`",
     )
 
     args = parser.parse_args()
@@ -296,6 +304,9 @@ def cli_evaluate(args: Union[argparse.Namespace, None] = None) -> None:
             name = utils.sanitize_long_string(name)
             args.wandb_args += f",name={name}"
         wandb_logger = WandbLogger(**simple_parse_args_string(args.wandb_args))
+
+    if args.compress_args is not None:
+        args.compress_args = simple_parse_args_string(args.compress_args)
 
     # reset logger
     eval_logger.remove()

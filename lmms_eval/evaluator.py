@@ -179,12 +179,13 @@ def simple_evaluate(
         },
     )
 
-    if cli_args.use_sparse:
-        print("You are using the sparse model of qwen")
+    if cli_args.compress_mode:
+        print(f"Compressing model with mode {cli_args.compress_mode} and args {cli_args.compress_args}", )
         from sparsevlm.models.qwen2.modeling_qwen2 import replace_Qwen2_forward
         from scripts.playground.get_token_type import get_token_type
         get_token_type(lm._model)
-        replace_Qwen2_forward(lm._model, "kv_prune", n_save_frame=3, save_special_token=True, save_text=True)
+        # replace_Qwen2_forward(lm._model, "kv_prune", n_save_frame=3, save_special_token=True, save_text=True)
+        replace_Qwen2_forward(lm.model, cli_args.compress_mode, **cli_args.compress_args)
 
     # helper function to recursively apply config overrides to leaf subtasks, skipping their constituent groups.
     # (setting of num_fewshot ; bypassing metric calculation ; setting fewshot seed)
