@@ -119,12 +119,50 @@ def simple_parse_args_string(args_string):
     Parses something like
         args1=val1,arg2=val2
     Into a dictionary
+    Supports multiple values for the same key, like
+        arg1=[val1,val2,val3]
+    An example is
+        --compress_args num_merging_layers=3,sparsity=[0.3,0,0,0,0,0,0,0],density=0.5
     """
+    import ast
+
     args_string = args_string.strip()
     if not args_string:
         return {}
-    arg_list = [arg for arg in args_string.split(",") if arg]
-    args_dict = {k: handle_arg_string(v) for k, v in [arg.split("=") for arg in arg_list]}
+    
+    # First find all list values and replace them with placeholders
+    list_values = []
+    def replace_list(match):
+        list_values.append(match.group(0))
+        return f"__LIST_{len(list_values)-1}__"
+    
+    # Replace lists with placeholders to avoid splitting them
+    processed_string = re.sub(r'\[[^\]]*\]', replace_list, args_string)
+    
+    # Now split on commas and process each arg
+    arg_list = [arg for arg in processed_string.split(",") if arg]
+    args_dict = {}
+    
+    for arg in arg_list:
+        if '=' not in arg:
+            continue
+        key, value = arg.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        
+        # Check if this is a list placeholder
+        if value.startswith("__LIST_") and value.endswith("__"):
+            list_idx = int(value[7:-2])
+            try:
+                # Safely evaluate the original list string
+                value = ast.literal_eval(list_values[list_idx])
+            except (ValueError, SyntaxError):
+                value = list_values[list_idx]
+        else:
+            value = handle_arg_string(value)
+            
+        args_dict[key] = value
+        
     return args_dict
 
 
