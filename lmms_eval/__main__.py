@@ -269,7 +269,7 @@ def parse_eval_args() -> argparse.Namespace:
     parser.add_argument(
         "--compress_mode",
         type=str,
-        choices=["profile", "kv_prune", "prefill_merge"],
+        choices=["profile", "kv_prune", "prefill_merge", "fastv", "merge_then_fastv", "merge_then_fastv_cost_given"],
         help="Select the compression mode from profile, kv_prune and prefill_merge",
         default=None,
     )
@@ -307,6 +307,8 @@ def cli_evaluate(args: Union[argparse.Namespace, None] = None) -> None:
 
     if args.compress_args is not None:
         args.compress_args = simple_parse_args_string(args.compress_args)
+
+    print(args)
 
     # reset logger
     eval_logger.remove()

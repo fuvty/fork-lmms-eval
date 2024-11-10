@@ -33,9 +33,12 @@ class MiniCPM_V(lmms):
         dtype: Optional[Union[str, torch.dtype]] = torch.bfloat16,
         batch_size: Optional[Union[int, str]] = 1,
         trust_remote_code: Optional[bool] = True,
+        force_sample: bool = False,
         **kwargs,
     ) -> None:
         super().__init__()
+        self.force_sample = force_sample
+
         # Do not use kwargs for now
         assert kwargs == {}, f"Unexpected kwargs: {kwargs}"
 
@@ -195,9 +198,13 @@ class MiniCPM_V(lmms):
 
             elif type(visuals[0]) == str and '.mp4' in visuals[0]:
                 # encode video frames
-                spare_frames, frame_time, video_time = self.load_video(visuals[0], max_frames_num=64, fps=1)
+                spare_frames, frame_time, video_time = self.load_video(visuals[0], max_frames_num=64, fps=1, force_sample=self.force_sample)
                 assert type(context) == str, "Context should be a string for video tasks"
                 spare_frames = [Image.fromarray(v.astype('uint8')) for v in spare_frames]
+                # noqa
+                self.num_frames = len(spare_frames)
+                self.model.num_frames = self.num_frames
+                
                 context = spare_frames + [context]
                 input_image = None
                 
