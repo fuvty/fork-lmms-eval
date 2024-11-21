@@ -98,6 +98,9 @@ class WandbLogger:
         # initialize a W&B run
         self.run = wandb.init(**self.wandb_args)
 
+        # log code
+        self.run.log_code()
+
     def post_init(self, results: Dict[str, Any]) -> None:
         self.results: Dict[str, Any] = copy.deepcopy(results)
         self.task_names: List[str] = list(results.get("results", {}).keys())
