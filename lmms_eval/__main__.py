@@ -269,7 +269,7 @@ def parse_eval_args() -> argparse.Namespace:
     parser.add_argument(
         "--compress_mode",
         type=str,
-        choices=["profile", "kv_prune", "prefill_merge", "fastv", "merge_then_fastv", "merge_then_fastv_cost_given", "streamingllm"],
+        choices=["framefusion", "profile", "kv_prune", "prefill_merge", "fastv", "merge_then_fastv", "merge_then_fastv_cost_given", "streamingllm"],
         help="Select the compression mode from profile, kv_prune and prefill_merge",
         default=None,
     )

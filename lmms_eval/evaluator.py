@@ -181,24 +181,28 @@ def simple_evaluate(
 
     if cli_args.compress_mode:
         print(f"Compressing model with mode {cli_args.compress_mode} and args {cli_args.compress_args}", )
-        
-        # replace_Qwen2_forward(lm._model, "kv_prune", n_save_frame=3, save_special_token=True, save_text=True)
-        if lm.model.config.architectures[0] == "LlavaQwenForCausalLM":
-            from sparsevlm.models.qwen2.modeling_qwen2 import replace_Qwen2_forward
-            from scripts.playground import get_token_type
-            
-            get_token_type.get_token_type(lm._model)
-            replace_Qwen2_forward(lm.model, cli_args.compress_mode, **cli_args.compress_args)
 
-        elif lm.model.config.architectures[0] == "MiniCPMV":
-            from scripts.playground import get_minicpm_v_token_type
-            from sparsevlm.models.qwen2.modeling_qwen2 import replace_minicpmv_forward
-
-            get_minicpm_v_token_type.get_token_type(lm.model)
-            replace_minicpmv_forward(lm.model, cli_args.compress_mode, **cli_args.compress_args)
-
+        if cli_args.compress_mode == "framefusion":
+            from framefusion.interface import apply_framefusion
+            apply_framefusion(lm._model, **cli_args.compress_args)
         else:
-            raise ValueError("No model found in lm")
+            # replace_Qwen2_forward(lm._model, "kv_prune", n_save_frame=3, save_special_token=True, save_text=True)
+            if lm.model.config.architectures[0] == "LlavaQwenForCausalLM":
+                from framefusion.models.qwen2.modeling_qwen2 import replace_Qwen2_forward
+                from framefusion.interface import get_token_type
+                
+                get_token_type(lm._model)
+                replace_Qwen2_forward(lm.model, cli_args.compress_mode, **cli_args.compress_args)
+
+            elif lm.model.config.architectures[0] == "MiniCPMV":
+                from framefusion.interface import get_token_type
+                from framefusion.models.qwen2.modeling_qwen2 import replace_minicpmv_forward
+
+                get_token_type(lm._model)
+                replace_minicpmv_forward(lm.model, cli_args.compress_mode, **cli_args.compress_args)
+
+            else:
+                raise ValueError("No model found in lm")
 
     # helper function to recursively apply config overrides to leaf subtasks, skipping their constituent groups.
     # (setting of num_fewshot ; bypassing metric calculation ; setting fewshot seed)
