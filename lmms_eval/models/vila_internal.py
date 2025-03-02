@@ -14,7 +14,7 @@ from llava import conversation as conversation_lib
 from llava.media import Video
 from llava.utils import distributed as dist
 from llava.utils import io
-
+from typing import Optional
 
 @register_model("vila_internal")
 class VILA(lmms):
@@ -26,15 +26,17 @@ class VILA(lmms):
         num_video_frames: int = 8,
         max_tiles: int = 12,
         batch_size: int = 1,
+        video_resize_ratio: Optional[float] = None,
+        **kwargs,
     ) -> None:
         super().__init__()
-        assert batch_size == 1, "VILA only supports batch size of 1 at the moment."
+        assert int(batch_size) == 1, "VILA only supports batch size of 1 at the moment, but got %d" % batch_size
         self._update_gpt_eval_model()
 
         devices = range(dist.local_rank(), torch.cuda.device_count(), dist.local_size())
         torch.cuda.set_device(devices[0])
 
-        self.model = llava.load(model_path, model_base=model_base, devices=devices)
+        self.model = llava.load(model_path, model_base=model_base, devices=devices, **kwargs)
         self.model.config.num_video_frames = num_video_frames
         context_length = num_video_frames * 512
 
@@ -55,6 +57,10 @@ class VILA(lmms):
         self.model.llm.config.model_max_length = context_length
         self.model.llm.config.tokenizer_model_max_length = context_length
         self.model.tokenizer.model_max_length = context_length
+
+        if video_resize_ratio is not None:
+            print("Adding video_resize_ratio", video_resize_ratio)
+            self.model.config.video_resize_ratio = video_resize_ratio
 
         conversation_lib.default_conversation = conversation_lib.conv_templates[conv_mode].copy()
 
@@ -108,8 +114,8 @@ class VILA(lmms):
                     io.save(cache_path, response)
             responses.append(response)
 
-            print("Prompt:", prompt)
-            print("Response:", response)
+            # print("Prompt:", prompt)
+            # print("Response:", response)
         return responses
 
     def _patch(self, args: Tuple) -> Tuple:

@@ -170,19 +170,27 @@ def simple_evaluate(
 
     task_dict = get_task_dict(tasks, task_manager)
 
-    ModelClass = get_model(model)
-    lm = ModelClass.create_from_arg_string(
-        model_args,
-        {
-            "batch_size": batch_size,
-            "device": device,
-        },
-    )
+    if type(model) == str:
+        ModelClass = get_model(model)
+        lm = ModelClass.create_from_arg_string(
+                model_args,
+            {
+                "batch_size": batch_size,
+                "device": device,
+            },
+        )
+    else:
+        print("Using model object")
+        lm = model
 
-    if cli_args.compress_mode:
+    if hasattr(cli_args, "compress_mode") and cli_args.compress_mode is not None:
         print(f"Compressing model with mode {cli_args.compress_mode} and args {cli_args.compress_args}", )
 
-        if cli_args.compress_mode == "framefusion":
+        if cli_args.compress_mode == "test":
+            print("Test mode")
+            from llava.compress.frame_compress import FrameCompress, apply_frame_compress
+            apply_frame_compress(lm.model, **cli_args.compress_args)
+        elif cli_args.compress_mode == "framefusion":
             from framefusion.interface import apply_framefusion
             apply_framefusion(lm._model, **cli_args.compress_args)
         else:
@@ -200,6 +208,7 @@ def simple_evaluate(
 
                 get_token_type(lm._model)
                 replace_minicpmv_forward(lm.model, cli_args.compress_mode, **cli_args.compress_args)
+                
 
             else:
                 raise ValueError("No model found in lm")
